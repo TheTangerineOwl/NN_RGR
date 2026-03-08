@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 
+
 class Sensor(models.Model):
     name = models.CharField(max_length=100)
     unit = models.CharField(max_length=20)

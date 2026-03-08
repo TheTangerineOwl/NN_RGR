@@ -15,6 +15,9 @@ dj_setup()
 
 from dashboard.callbacks import init_callbacks
 from dashboard.layouts.main import create_layout
+from django.conf import settings
+
+DEBUG = settings.DEBUG
 
 app = Dash(__name__)
 app.layout = create_layout()
@@ -22,4 +25,4 @@ init_callbacks(app)
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8050)
+    app.run(debug=DEBUG, port=8050, dev_tools_ui=DEBUG)
