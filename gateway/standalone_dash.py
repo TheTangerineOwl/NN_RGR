@@ -11,7 +11,7 @@ load_dotenv()
 environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 environ.setdefault('DJANGO_SETTINGS_MODULE', 'gateway.settings')
 dj_setup()
-from dashboard.models import Sensor, SensorData
+from sensors.models import Sensor, SensorData
 
 
 def parse_datetime(dt_str):
