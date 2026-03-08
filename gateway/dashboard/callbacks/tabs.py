@@ -50,7 +50,11 @@ def init_tabs_callbacks(app):
                 mode='lines+markers'
             )
             fig = go.Figure(data=[trace])
-            fig.update_layout(title='Изменение показаний во времени')
+            fig.update_layout(
+                title='Изменение показаний во времени',
+                xaxis_title='Время',
+                yaxis_title=data[0].sensor.unit
+            )
             return dcc.Graph(id='time-series-graph', figure=fig)
 
         elif tab == 'tab-hist':
@@ -58,7 +62,11 @@ def init_tabs_callbacks(app):
                 return dcc.Graph(id='hist-graph', figure=go.Figure())
             values = [d.value for d in data]
             fig = go.Figure(data=[go.Histogram(x=values, nbinsx=30)])
-            fig.update_layout(title='Распределение значений')
+            fig.update_layout(
+                title='Распределение значений',
+                xaxis_title=data[0].sensor.unit,
+                yaxis_title='Частота'
+            )
             return dcc.Graph(id='hist-graph', figure=fig)
 
         elif tab == 'tab-current':
@@ -76,6 +84,7 @@ def init_tabs_callbacks(app):
                     title={'text': f"Последнее значение ({
                         latest.timestamp.strftime('%Y-%m-%d %H:%M')
                     })"},
+                    number={'suffix': f" {sensor.unit}"},
                     gauge={
                         'axis': {'range': [min_val, max_val]},
                         'bar': {'color': "darkblue"},
