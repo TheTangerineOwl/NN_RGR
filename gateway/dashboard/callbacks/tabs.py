@@ -77,7 +77,7 @@ def init_tabs_callbacks(app):
                     })"
                 },
                 gauge={
-                    'axis': {'range': [None, 100]},
+                    'axis': {'range': [None, 60]},
                     'bar': {'color': "darkblue"},
                     'steps': [
                         {'range': [0, 30], 'color': "lightgray"},
