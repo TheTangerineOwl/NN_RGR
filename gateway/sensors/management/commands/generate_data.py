@@ -1,4 +1,5 @@
 import random
+import math
 import time
 from datetime import timedelta
 from django.core.management.base import BaseCommand
@@ -6,48 +7,78 @@ from django.utils import timezone
 from sensors.models import Sensor, SensorData
 
 
+class TemperatureGenerator:
+    """Генератор температуры с суточным циклом и инерцией"""
+    def __init__(self, base_temp=22.0, daily_amplitude=3.0, phase=4.0,
+                 noise_sigma=0.2, inertia=0.95):
+        """
+        base_temp: средняя температура за сутки
+        daily_amplitude: амплитуда суточных колебаний
+        phase: час минимальной температуры (0-23), например 4 утра
+        noise_sigma: стандартное отклонение случайного шума
+        inertia: коэффициент инерции (0..1)
+        """
+        self.base_temp = base_temp
+        self.daily_amplitude = daily_amplitude
+        self.phase = phase
+        self.noise_sigma = noise_sigma
+        self.inertia = inertia
+        self.prev_value = None
+
+    def target_temp(self, t):
+        """Целевая температура в момент времени t (datetime)"""
+        hour = t.hour + t.minute/60.0 + t.second/3600.0
+        daily = self.daily_amplitude * math.cos(
+            2 * math.pi * (hour - self.phase) / 24.0
+        )
+        return self.base_temp + daily
+
+    def next_value(self, current_time):
+        """Генерирует следующее значение температуры"""
+        target = self.target_temp(current_time)
+        if self.prev_value is None:
+            value = target + random.gauss(0, self.noise_sigma)
+        else:
+            diff = target - self.prev_value
+            value = self.prev_value + self.inertia * diff + random.gauss(
+                0, self.noise_sigma
+            )
+        self.prev_value = value
+        return value
+
+
 class Command(BaseCommand):
-    help = 'Генерирует тестовые данные для датчиков каждые N секунд'
+    help = 'Генерирует реалистичные тестовые данные температуры для датчиков'
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            '--sensors',
-            nargs='+',
-            type=int,
-            help='ID датчиков (если не указаны, берутся все)'
-        )
-        parser.add_argument(
-            '--interval',
-            type=int,
-            default=30,
-            help='Интервал в секундах'
-        )
-        parser.add_argument(
-            '--min',
-            type=float,
-            default=20.0,
-            help='Минимальное значение'
-        )
-        parser.add_argument(
-            '--max',
-            type=float,
-            default=30.0,
-            help='Максимальное значение'
-        )
-        parser.add_argument(
-            '--hours',
-            type=int,
-            default=None,
-            help='Заполнить историю за последние N часов'
-        )
+        parser.add_argument('--sensors', nargs='+', type=int,
+                            help='ID датчиков (если не указаны, берутся все)')
+        parser.add_argument('--interval', type=int, default=30,
+                            help='Интервал в секундах')
+        parser.add_argument('--hours', type=int, default=None,
+                            help='Заполнить историю за последние N часов')
+
+        parser.add_argument('--base-temp', type=float, default=22.0,
+                            help='Средняя температура')
+        parser.add_argument('--daily-amplitude', type=float, default=3.0,
+                            help='Суточная амплитуда')
+        parser.add_argument('--phase', type=float, default=4.0,
+                            help='Час минимальной температуры (0-23)')
+        parser.add_argument('--noise-sigma', type=float, default=0.2,
+                            help='Стандартное отклонение шума')
+        parser.add_argument('--inertia', type=float, default=0.95,
+                            help='Коэффициент инерции (0-1)')
 
     def handle(self, *args, **options):
         interval = options['interval']
-        min_val = options['min']
-        max_val = options['max']
-        av = (max_val + min_val) / 2
-        sensor_ids = options['sensors']
         hours = options['hours']
+        sensor_ids = options['sensors']
+
+        base_temp = options['base_temp']
+        daily_amplitude = options['daily_amplitude']
+        phase = options['phase']
+        noise_sigma = options['noise_sigma']
+        inertia = options['inertia']
 
         if sensor_ids:
             sensors = Sensor.objects.filter(id__in=sensor_ids)
@@ -58,33 +89,39 @@ class Command(BaseCommand):
             self.stderr.write('Нет датчиков для генерации')
             return
 
-        self.stdout.write(
-            f'Генерация для {
-                sensors.count()
-            } датчиков, интервал {interval} сек.'
-        )
-
-        last = {}
+        generators = {}
         for s in sensors:
-            dat = SensorData.objects.filter(
-                sensor=s).order_by('-timestamp').first()
-            last[s] = dat.value if isinstance(dat, SensorData) else av
+            generators[s.id] = TemperatureGenerator(
+                base_temp=base_temp,
+                daily_amplitude=daily_amplitude,
+                phase=phase,
+                noise_sigma=noise_sigma,
+                inertia=inertia
+            )
+
+        self.stdout.write(
+            f'Генерация для {sensors.count()} датчиков, '
+            f'интервал {interval} сек.'
+        )
 
         if hours:
             end = timezone.now()
             start = end - timedelta(hours=hours)
             current = start
             self.stdout.write('Заполнение истории...')
+            count = 0
             while current <= end:
                 for s in sensors:
-                    last[s] = SensorData.objects.create(
+                    gen = generators[s.id]
+                    val = gen.next_value(current)
+                    SensorData.objects.create(
                         sensor=s,
-                        # value=random.uniform(min_val, max_val),
-                        value=random.normalvariate(mu=last[s]),
+                        value=val,
                         timestamp=current
-                    ).value
+                    )
+                    count += 1
                 current += timedelta(seconds=interval)
-            self.stdout.write('История заполнена.')
+            self.stdout.write(f'История заполнена: {count} записей.')
 
         self.stdout.write(
             'Запуск генерации в реальном времени. Для остановки Ctrl+C'
@@ -93,16 +130,16 @@ class Command(BaseCommand):
             while True:
                 now = timezone.now()
                 for s in sensors:
-                    last[s] = SensorData.objects.create(
+                    gen = generators[s.id]
+                    val = gen.next_value(now)
+                    SensorData.objects.create(
                         sensor=s,
-                        # value=random.uniform(min_val, max_val),
-                        value=random.normalvariate(mu=last[s]),
+                        value=val,
                         timestamp=now
-                    ).value
+                    )
                 self.stdout.write(
-                    f'{
-                        now.strftime("%Y-%m-%d %H:%M:%S")
-                    }: +{sensors.count()} записей'
+                    f'{now.strftime("%Y-%m-%d %H:%M:%S")}: '
+                    f'+{sensors.count()} записей'
                 )
                 time.sleep(interval)
         except KeyboardInterrupt:
