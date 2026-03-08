@@ -53,8 +53,8 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--sensors', nargs='+', type=int,
                             help='ID датчиков (если не указаны, берутся все)')
-        parser.add_argument('--interval', type=int, default=30,
-                            help='Интервал в секундах')
+        # parser.add_argument('--interval', type=int, default=30,
+        #                     help='Интервал в секундах')
         parser.add_argument('--hours', type=int, default=None,
                             help='Заполнить историю за последние N часов')
 
@@ -70,7 +70,7 @@ class Command(BaseCommand):
                             help='Коэффициент инерции (0-1)')
 
     def handle(self, *args, **options):
-        interval = options['interval']
+        # interval = options['interval']
         hours = options['hours']
         sensor_ids = options['sensors']
 
@@ -100,47 +100,64 @@ class Command(BaseCommand):
             )
 
         self.stdout.write(
-            f'Генерация для {sensors.count()} датчиков, '
-            f'интервал {interval} сек.'
+            f'Генерация для {sensors.count()} датчиков'
         )
 
         if hours:
             end = timezone.now()
             start = end - timedelta(hours=hours)
-            current = start
+            # current = start
             self.stdout.write('Заполнение истории...')
             count = 0
-            while current <= end:
-                for s in sensors:
-                    gen = generators[s.id]
+            for s in sensors:
+                current = start
+                gen = generators[s.id]
+                while current <= end:
                     val = gen.next_value(current)
+                    if val > s.max_value:
+                        val = s.max_value
+                    if val < s.min_value:
+                        val = s.min_value
                     SensorData.objects.create(
                         sensor=s,
                         value=val,
                         timestamp=current
                     )
                     count += 1
-                current += timedelta(seconds=interval)
+                    current += timedelta(seconds=s.interval)
             self.stdout.write(f'История заполнена: {count} записей.')
 
         self.stdout.write(
             'Запуск генерации в реальном времени. Для остановки Ctrl+C'
         )
         try:
+            wait_till = {}
+            step = sensors[0].interval
+            for s in sensors:
+                wait_till[s] = s.interval
+                step = min(step, s.interval)
             while True:
                 now = timezone.now()
                 for s in sensors:
+                    wait_till[s] -= step
+                    if wait_till[s] > 0:
+                        continue
                     gen = generators[s.id]
                     val = gen.next_value(now)
+                    if val > s.max_value:
+                        val = s.max_value
+                    if val < s.min_value:
+                        val = s.min_value
                     SensorData.objects.create(
                         sensor=s,
                         value=val,
                         timestamp=now
                     )
-                self.stdout.write(
-                    f'{now.strftime("%Y-%m-%d %H:%M:%S")}: '
-                    f'+{sensors.count()} записей'
-                )
-                time.sleep(interval)
+                    wait_till[s] = s.interval
+                    self.stdout.write(
+                        f'{now.strftime("%Y-%m-%d %H:%M:%S")}: '
+                        f'+ запись сенсора {s}, показание {val:.2f}'
+                    )
+                time.sleep(step)
         except KeyboardInterrupt:
             self.stdout.write('Остановлено.')

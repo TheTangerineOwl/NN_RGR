@@ -65,31 +65,58 @@ def init_tabs_callbacks(app):
             if not data:
                 return html.Div("Нет данных за выбранный период")
             latest = data[-1]
-            data_sorted = sorted(data, key=lambda x: x.timestamp)
-            latest = data_sorted[-1]
+            # data_sorted = sorted(data, key=lambda x: x.timestamp)
+            # latest = data_sorted[-1]
+
+            sensor = latest.sensor
+            min_val = sensor.min_value
+            max_val = sensor.max_value
 
             fig = go.Figure(go.Indicator(
-                mode="gauge+number+delta",
-                value=latest.value,
-                title={
-                    'text': f"Последнее значение ({
+                    mode="gauge+number",
+                    value=latest.value,
+                    title={'text': f"Последнее значение ({
                         latest.timestamp.strftime('%Y-%m-%d %H:%M')
-                    })"
-                },
-                gauge={
-                    'axis': {'range': [None, 60]},
-                    'bar': {'color': "darkblue"},
-                    'steps': [
-                        {'range': [0, 30], 'color': "lightgray"},
-                        {'range': [30, 60], 'color': "gray"}
-                    ],
-                    'threshold': {
-                        'line': {'color': "red", 'width': 4},
-                        'thickness': 0.5,
-                        'value': 30
+                    })"},
+                    gauge={
+                        'axis': {'range': [min_val, max_val]},
+                        'bar': {'color': "darkblue"},
+                        'steps': [
+                            {
+                                'range': [
+                                    min_val, (min_val+max_val)/2
+                                ], 'color': "lightgray"
+                            },
+                            {
+                                'range': [
+                                    (min_val+max_val)/2, max_val
+                                    ], 'color': "gray"
+                            }
+                        ],
+                        'threshold': {
+                            'line': {'color': "red", 'width': 4},
+                            'thickness': 0.75,
+                            'value': max_val * 0.9
+                        }
                     }
-                }))
+                ))
             fig.update_layout(height=300)
-            return dcc.Graph(id='current-gauge', figure=fig)
+
+            switch = dcc.RadioItems(
+                id='sensor-switch',
+                options=[
+                    {'label': 'Вкл', 'value': True},
+                    {'label': 'Выкл', 'value': False}
+                ],
+                value=sensor.on,
+                labelStyle={'display': 'inline-block', 'marginRight': '10px'}
+            )
+
+            return html.Div([
+                dcc.Graph(id='current-gauge', figure=fig),
+                html.Hr(),
+                html.Label('Состояние датчика:'),
+                switch
+            ])
 
         return html.Div()

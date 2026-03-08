@@ -15,10 +15,22 @@ class Sensor(models.Model):
         'Включен',
         default=False
     )
+    max_value = models.FloatField(
+        'Максимальное значение',
+        default=100
+    )
+    min_value = models.FloatField(
+        'Минимальное значение',
+        default=0
+    )
+    interval = models.IntegerField(
+        'Интервал опроса',
+        default=10
+    )
 
     def __str__(self):
         return self.name
-    
+
     class Meta:
         ordering = ['name']
         verbose_name = 'Датчик'
