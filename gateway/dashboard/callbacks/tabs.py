@@ -65,8 +65,6 @@ def init_tabs_callbacks(app):
             if not data:
                 return html.Div("Нет данных за выбранный период")
             latest = data[-1]
-            # data_sorted = sorted(data, key=lambda x: x.timestamp)
-            # latest = data_sorted[-1]
 
             sensor = latest.sensor
             min_val = sensor.min_value
@@ -102,21 +100,9 @@ def init_tabs_callbacks(app):
                 ))
             fig.update_layout(height=300)
 
-            switch = dcc.RadioItems(
-                id='sensor-switch',
-                options=[
-                    {'label': 'Вкл', 'value': True},
-                    {'label': 'Выкл', 'value': False}
-                ],
-                value=sensor.on,
-                labelStyle={'display': 'inline-block', 'marginRight': '10px'}
-            )
-
             return html.Div([
                 dcc.Graph(id='current-gauge', figure=fig),
                 html.Hr(),
-                html.Label('Состояние датчика:'),
-                switch
             ])
 
         return html.Div()

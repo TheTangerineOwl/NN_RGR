@@ -30,6 +30,19 @@ def create_layout():
             style={'margin': 20}
         ),
 
+        html.Div([
+            html.Label('Состояние датчика:'),
+            dcc.RadioItems(
+                id='sensor-switch',
+                options=[
+                    {'label': 'Вкл', 'value': True},
+                    {'label': 'Выкл', 'value': False}
+                ],
+                value=None,
+                labelStyle={'display': 'inline-block', 'marginRight': '10px'}
+            )
+        ], style={'margin': 20}),
+
         dcc.Tabs(id='tabs', value='tab-time', children=[
             dcc.Tab(label='Временной ряд', value='tab-time'),
             dcc.Tab(label='Гистограмма', value='tab-hist'),
