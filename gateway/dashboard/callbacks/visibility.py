@@ -8,7 +8,6 @@ def init_visibility_callbacks(app):
     )
     def toggle_thresholds_visibility(sensor_id, **kwargs):
         if sensor_id is not None:
-            return {'display': 'block', 'marginTop': 20, 'padding': '10px',
-                    'border': '1px solid #ddd', 'borderRadius': '5px'}
+            return {'display': 'flex'}
         else:
             return {'display': 'none'}
