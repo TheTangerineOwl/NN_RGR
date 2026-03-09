@@ -23,6 +23,14 @@ class Sensor(models.Model):
         'Минимальное значение',
         default=0
     )
+    threshold_above = models.FloatField(
+        'Верхний порог',
+        null=True, blank=True
+    )
+    threshold_below = models.FloatField(
+        'Нижний порог',
+        null=True, blank=True
+    )
     interval = models.IntegerField(
         'Интервал опроса',
         default=10
@@ -30,6 +38,13 @@ class Sensor(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if self.threshold_above is None:
+            self.threshold_above = self.max_value
+        if self.threshold_below is None:
+            self.threshold_below = self.min_value
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ['name']

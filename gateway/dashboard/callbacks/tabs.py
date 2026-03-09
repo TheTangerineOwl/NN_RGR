@@ -77,36 +77,47 @@ def init_tabs_callbacks(app):
             sensor = latest.sensor
             min_val = sensor.min_value
             max_val = sensor.max_value
+            thr_ab = sensor.threshold_above
+            thr_bw = sensor.threshold_below
+
+            step_width = (max_val - min_val) * 0.005
+
+            thr_ab_low = max(thr_ab - step_width, min_val)
+            thr_ab_high = min(thr_ab + step_width, max_val)
+            thr_bw_low = max(thr_bw - step_width, min_val)
+            thr_bw_high = min(thr_bw + step_width, max_val)
+
+            if latest.value <= thr_bw:
+                bar_color = 'blue'
+            elif latest.value >= thr_ab:
+                bar_color = 'red'
+            else:
+                bar_color = 'green'
 
             fig = go.Figure(go.Indicator(
-                    mode="gauge+number",
-                    value=latest.value,
-                    title={'text': f"Последнее значение ({
-                        latest.timestamp.strftime('%Y-%m-%d %H:%M')
-                    })"},
-                    number={'suffix': f" {sensor.unit}"},
-                    gauge={
-                        'axis': {'range': [min_val, max_val]},
-                        'bar': {'color': "darkblue"},
-                        'steps': [
-                            {
-                                'range': [
-                                    min_val, (min_val+max_val)/2
-                                ], 'color': "lightgray"
-                            },
-                            {
-                                'range': [
-                                    (min_val+max_val)/2, max_val
-                                    ], 'color': "gray"
-                            }
-                        ],
-                        'threshold': {
-                            'line': {'color': "red", 'width': 4},
-                            'thickness': 0.75,
-                            'value': max_val * 0.9
-                        }
-                    }
-                ))
+                mode="gauge+number",
+                value=latest.value,
+                title={'text': f"Последнее значение ({
+                           latest.timestamp.strftime('%Y-%m-%d %H:%M')
+                        })"},
+                number={'suffix': f" {sensor.unit}"},
+                gauge={
+                    'axis': {'range': [min_val, max_val]},
+                    'bar': {'color': bar_color},
+                    'steps': [
+                        {'range': [min_val, thr_bw_low],
+                         'color': 'gray'},
+                        {'range': [thr_bw_low, thr_bw_high],
+                         'color': 'red'},
+                        {'range': [thr_bw_high, thr_ab_low],
+                         'color': 'lightgray'},
+                        {'range': [thr_ab_low, thr_ab_high],
+                         'color': 'red'},
+                        {'range': [thr_ab_high, max_val],
+                         'color': 'gray'},
+                    ],
+                }
+            ))
             fig.update_layout(height=300)
 
             return html.Div([
