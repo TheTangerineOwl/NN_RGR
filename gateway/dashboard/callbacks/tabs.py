@@ -1,21 +1,9 @@
 from dash import Input, Output, html, dcc
 import plotly.graph_objs as go
-from datetime import datetime
 from django.utils import timezone
 from sensors.models import SensorData
-
-
-def parse_datetime(dt_str):
-    """Преобразует строку от datetime-picker в aware datetime (UTC)."""
-    if not dt_str:
-        return None
-    dt_str = dt_str.replace('Z', '+00:00')
-    dt = datetime.fromisoformat(dt_str)
-    if timezone.is_naive(dt):
-        dt = timezone.make_aware(dt, timezone.UTC)
-    else:
-        dt = dt.astimezone(timezone.UTC)
-    return dt
+from .stats import render_stats
+from .time_parser import parse_datetime
 
 
 def init_tabs_callbacks(app):
@@ -68,5 +56,7 @@ def init_tabs_callbacks(app):
                 yaxis_title='Частота'
             )
             return dcc.Graph(id='hist-graph', figure=fig)
+        elif tab == 'tab-stats':
+            return render_stats(sensor_id, start_date, end_date)
 
         return html.Div()

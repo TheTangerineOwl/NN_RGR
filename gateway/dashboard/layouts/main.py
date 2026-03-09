@@ -97,6 +97,7 @@ def create_layout():
         dcc.Tabs(id='tabs', value='tab-time', children=[
             dcc.Tab(label='Временной ряд', value='tab-time'),
             dcc.Tab(label='Гистограмма', value='tab-hist'),
+            dcc.Tab(label='Статистика', value='tab-stats'),
         ]),
         html.Div(id='tab-content'),
         dcc.Interval(id='interval-component', interval=10*1000, n_intervals=0)
