@@ -19,7 +19,7 @@ from django.conf import settings
 
 DEBUG = settings.DEBUG
 
-app = Dash(__name__)
+app = Dash(__name__, suppress_callback_exceptions=True)
 app.layout = create_layout()
 init_callbacks(app)
 
